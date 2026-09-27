@@ -1,0 +1,6 @@
+{
+  "name": "KruSmart - ระบบบริหารงานและตัดเกรดครูมืออาชีพ",
+  "description": "ระบบรวมศูนย์สำหรับครูผู้สอนหลายวิชาและหลายระดับชั้น จัดการงาน เช็คสถานะส่งงาน ปลดล็อกกรอกคะแนน ตัดเกรดอัตโนมัติ และระบบตรวจสอบสำหรับนักเรียน",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,219 @@
+{
+  "entities": {
+    "TeacherProfile": {
+      "title": "TeacherProfile",
+      "description": "Teacher credentials, profile information, and preferences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fullName": { "type": "string", "maxLength": 200 },
+        "username": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "position": { "type": "string", "maxLength": 150 },
+        "department": { "type": "string", "maxLength": 150 },
+        "passwordHash": { "type": "string", "maxLength": 256 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "fullName"]
+    },
+    "SchoolProfile": {
+      "title": "SchoolProfile",
+      "description": "Institutional information, branding, and academic standards",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "affiliation": { "type": "string", "maxLength": 200 },
+        "areaZone": { "type": "string", "maxLength": 200 },
+        "schoolCode": { "type": "string", "maxLength": 50 },
+        "directorName": { "type": "string", "maxLength": 150 },
+        "academicHeadName": { "type": "string", "maxLength": 150 },
+        "currentTerm": { "type": "string", "enum": ["1", "2"] },
+        "currentAcademicYear": { "type": "string", "maxLength": 20 },
+        "logoUrl": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "name"]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "Classroom or grade section",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "gradeLevel": { "type": "string", "maxLength": 50 },
+        "roomNumber": { "type": "string", "maxLength": 50 },
+        "advisorName": { "type": "string", "maxLength": 150 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "name"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Academic course subject taught by the teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 50 },
+        "name": { "type": "string", "maxLength": 150 },
+        "gradeLevel": { "type": "string", "maxLength": 50 },
+        "classroomId": { "type": "string", "maxLength": 128 },
+        "academicYear": { "type": "string", "maxLength": 20 },
+        "term": { "type": "string", "enum": ["1", "2"] },
+        "color": { "type": "string", "maxLength": 50 },
+        "credit": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "code", "name"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student roster record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "classroomId": { "type": "string", "maxLength": 128 },
+        "studentCode": { "type": "string", "maxLength": 50 },
+        "seatNumber": { "type": "number" },
+        "prefix": { "type": "string", "enum": ["เด็กชาย", "เด็กหญิง", "นาย", "นางสาว"] },
+        "fullName": { "type": "string", "maxLength": 200 },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "note": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "classroomId", "studentCode", "fullName"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Coursework, exam, or sub-task assigned to students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 250 },
+        "category": { "type": "string", "maxLength": 100 },
+        "period": { "type": "string", "enum": ["pre_midterm", "midterm", "post_midterm", "final"] },
+        "unit": { "type": "string", "maxLength": 200 },
+        "topic": { "type": "string", "maxLength": 200 },
+        "maxScore": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 50 },
+        "assignedDate": { "type": "string", "maxLength": 50 },
+        "isExam": { "type": "boolean" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "subjectId", "title", "maxScore", "period"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student submission status and scored evaluation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "assignmentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["pending", "submitted", "late", "exempt"] },
+        "score": { "type": "number" },
+        "submittedAt": { "type": "string", "maxLength": 100 },
+        "teacherNote": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "assignmentId", "studentId", "status"]
+    },
+    "AttendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Daily student attendance check records per session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "classroomId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 50 },
+        "periodNumber": { "type": "number" },
+        "title": { "type": "string", "maxLength": 200 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "subjectId", "classroomId", "date"]
+    },
+    "TeachingLog": {
+      "title": "TeachingLog",
+      "description": "Lesson timeline, activities performed today, and reflection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "classroomId": { "type": "string", "maxLength": 128 },
+        "sessionNumber": { "type": "number" },
+        "date": { "type": "string", "maxLength": 50 },
+        "unit": { "type": "string", "maxLength": 200 },
+        "topic": { "type": "string", "maxLength": 200 },
+        "activities": { "type": "string", "maxLength": 3000 },
+        "learningOutcomes": { "type": "string", "maxLength": 2000 },
+        "problemsAndSolutions": { "type": "string", "maxLength": 2000 },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "subjectId", "classroomId", "date", "activities"]
+    },
+    "DriveResource": {
+      "title": "DriveResource",
+      "description": "Media, worksheets, slides, and educational files in teacher repository",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 250 },
+        "type": { "type": "string", "maxLength": 50 },
+        "unit": { "type": "string", "maxLength": 200 },
+        "topic": { "type": "string", "maxLength": 200 },
+        "fileName": { "type": "string", "maxLength": 250 },
+        "isPublicToStudents": { "type": "boolean" },
+        "aiGenerated": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "subjectId", "title", "type"]
+    }
+  },
+  "firestore": {
+    "/teachers/{teacherId}": {
+      "schema": "TeacherProfile",
+      "description": "Teacher profile and settings"
+    },
+    "/schools/{schoolId}": {
+      "schema": "SchoolProfile",
+      "description": "School information and system configurations"
+    },
+    "/classrooms/{classroomId}": {
+      "schema": "Classroom",
+      "description": "Classrooms and sections"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "Subject",
+      "description": "Courses and subjects"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Student roster"
+    },
+    "/assignments/{assignmentId}": {
+      "schema": "Assignment",
+      "description": "Assignments, exams, and sub-tasks"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Student work submission records and scores"
+    },
+    "/attendance_sessions/{sessionId}": {
+      "schema": "AttendanceSession",
+      "description": "Class attendance sessions and ineligible status data"
+    },
+    "/teaching_logs/{logId}": {
+      "schema": "TeachingLog",
+      "description": "Teaching timeline and lesson log records"
+    },
+    "/drive_resources/{resourceId}": {
+      "schema": "DriveResource",
+      "description": "Teaching drive files, slides, and AI-generated worksheets"
+    }
+  }
+}

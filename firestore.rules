@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all (Pillar 1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Teacher Profiles & Security Settings
+    match /teachers/{teacherId} {
+      allow read: if isValidId(teacherId);
+      allow create, update: if isValidId(teacherId) &&
+        incoming().fullName is string && incoming().fullName.size() <= 200;
+      allow delete: if false;
+    }
+
+    // School Profile
+    match /schools/{schoolId} {
+      allow read: if isValidId(schoolId);
+      allow create, update: if isValidId(schoolId) &&
+        incoming().name is string && incoming().name.size() <= 200;
+      allow delete: if false;
+    }
+
+    // Classrooms
+    match /classrooms/{classroomId} {
+      allow read: if isValidId(classroomId);
+      allow create, update: if isValidId(classroomId) &&
+        incoming().name is string && incoming().name.size() <= 100;
+      allow delete: if isValidId(classroomId);
+    }
+
+    // Subjects
+    match /subjects/{subjectId} {
+      allow read: if isValidId(subjectId);
+      allow create, update: if isValidId(subjectId) &&
+        incoming().code is string && incoming().code.size() <= 50 &&
+        incoming().name is string && incoming().name.size() <= 150;
+      allow delete: if isValidId(subjectId);
+    }
+
+    // Students
+    match /students/{studentId} {
+      allow read: if isValidId(studentId);
+      allow create, update: if isValidId(studentId) &&
+        incoming().studentCode is string && incoming().studentCode.size() <= 50 &&
+        incoming().fullName is string && incoming().fullName.size() <= 200;
+      allow delete: if isValidId(studentId);
+    }
+
+    // Assignments
+    match /assignments/{assignmentId} {
+      allow read: if isValidId(assignmentId);
+      allow create, update: if isValidId(assignmentId) &&
+        incoming().title is string && incoming().title.size() <= 250;
+      allow delete: if isValidId(assignmentId);
+    }
+
+    // Submissions
+    match /submissions/{submissionId} {
+      allow read: if isValidId(submissionId);
+      allow create, update: if isValidId(submissionId) &&
+        incoming().assignmentId is string &&
+        incoming().studentId is string &&
+        incoming().status is string;
+      allow delete: if isValidId(submissionId);
+    }
+
+    // Attendance Sessions
+    match /attendance_sessions/{sessionId} {
+      allow read: if isValidId(sessionId);
+      allow create, update: if isValidId(sessionId) &&
+        incoming().subjectId is string &&
+        incoming().classroomId is string &&
+        incoming().date is string;
+      allow delete: if isValidId(sessionId);
+    }
+
+    // Teaching Logs
+    match /teaching_logs/{logId} {
+      allow read: if isValidId(logId);
+      allow create, update: if isValidId(logId) &&
+        incoming().subjectId is string &&
+        incoming().classroomId is string &&
+        incoming().activities is string;
+      allow delete: if isValidId(logId);
+    }
+
+    // Drive Resources & Worksheets
+    match /drive_resources/{resourceId} {
+      allow read: if isValidId(resourceId);
+      allow create, update: if isValidId(resourceId) &&
+        incoming().subjectId is string &&
+        incoming().title is string;
+      allow delete: if isValidId(resourceId);
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
