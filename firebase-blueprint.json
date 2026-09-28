@@ -172,6 +172,19 @@
         "updatedAt": { "type": "string", "maxLength": 100 }
       },
       "required": ["id", "subjectId", "title", "type"]
+    },
+    "UserActivityLog": {
+      "title": "UserActivityLog",
+      "description": "Student and teacher activity tracking, access logs, and audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string", "maxLength": 50 },
+        "actorType": { "type": "string", "maxLength": 50 },
+        "action": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "timestamp", "actorType", "action"]
     }
   },
   "firestore": {
@@ -214,6 +227,10 @@
     "/drive_resources/{resourceId}": {
       "schema": "DriveResource",
       "description": "Teaching drive files, slides, and AI-generated worksheets"
+    },
+    "/activity_logs/{logId}": {
+      "schema": "UserActivityLog",
+      "description": "Student and teacher interaction audit trail and engagement tracking"
     }
   }
 }

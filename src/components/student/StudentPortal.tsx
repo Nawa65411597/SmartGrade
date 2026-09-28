@@ -65,6 +65,10 @@ export const StudentPortal: React.FC = () => {
   // Worksheet preview modal for student
   const [studentPreviewWorksheet, setStudentPreviewWorksheet] = useState<WorksheetData | null>(null);
 
+  // Read time & session duration tracking refs
+  const worksheetOpenTimeRef = useRef<number | null>(null);
+  const sessionStartTimeRef = useRef<number>(Date.now());
+
   // Session ref to avoid redundant log calls
   const loggedSessionRef = useRef<string | null>(null);
 
@@ -116,12 +120,16 @@ export const StudentPortal: React.FC = () => {
     });
   }, [driveResources, currentSubject, studentClassroom]);
 
-  // Log student portal session on load or subject change
+  // Log student portal session on load or subject change with integrity detection
   useEffect(() => {
     if (activeStudent && currentSubject) {
       const sessionKey = `${activeStudent.id}-${currentSubject.id}`;
       if (loggedSessionRef.current !== sessionKey) {
         loggedSessionRef.current = sessionKey;
+        const currentHour = new Date().getHours();
+        const isLateNight = currentHour >= 23 || currentHour < 5;
+        const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
         logActivity({
           actorType: 'student',
           actionType: 'portal_login',
@@ -132,12 +140,93 @@ export const StudentPortal: React.FC = () => {
           classroomName: studentClassroom?.name,
           subjectId: currentSubject.id,
           subjectName: currentSubject.name,
-          title: `เข้าสู่ระบบตรวจสอบงาน (${currentSubject.name})`,
-          details: `เข้าดูข้อมูลการเรียน ห้อง ${studentClassroom?.name || ''} เลขที่ ${activeStudent.seatNumber}`,
+          title: `เข้าสู่ระบบตรวจสอบงาน (${currentSubject.name})${isLateNight ? ' 🌙' : ''}`,
+          details: `เข้าดูข้อมูลการเรียน ห้อง ${studentClassroom?.name || ''} เลขที่ ${activeStudent.seatNumber}${isLateNight ? ` (เข้าตรวจงานเวลาวิกาล ${timeStr} น.)` : ''}`,
+          isIntegrityFlagged: isLateNight,
+          integrityReason: isLateNight ? `🌙 เข้าใช้งานยามวิกาล (${timeStr} น.)` : undefined,
         });
       }
     }
   }, [activeStudent, currentSubject, studentClassroom, logActivity]);
+
+  // Continuous Session Duration Logging (every 2 minutes)
+  useEffect(() => {
+    if (!activeStudent || !currentSubject) return;
+    const interval = setInterval(() => {
+      const totalSec = Math.round((Date.now() - sessionStartTimeRef.current) / 1000);
+      if (totalSec >= 120 && totalSec % 120 === 0) {
+        const mins = Math.floor(totalSec / 60);
+        logActivity({
+          actorType: 'student',
+          actionType: 'portal_session_duration',
+          studentId: activeStudent.id,
+          studentCode: activeStudent.studentCode,
+          studentName: `${activeStudent.prefix}${activeStudent.fullName}`,
+          classroomId: studentClassroom?.id,
+          classroomName: studentClassroom?.name,
+          subjectId: currentSubject.id,
+          subjectName: currentSubject.name,
+          title: `อยู่ในระบบต่อเนื่อง (${mins} นาที)`,
+          details: `นักเรียนเข้าศึกษาและตรวจงานในระบบต่อเนื่อง ${mins} นาที`,
+          durationSeconds: totalSec,
+        });
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [activeStudent, currentSubject, studentClassroom, logActivity]);
+
+  // Handlers for Worksheet preview with Read Time Tracking
+  const handleOpenWorksheetPreview = (worksheet: WorksheetData) => {
+    worksheetOpenTimeRef.current = Date.now();
+    setStudentPreviewWorksheet(worksheet);
+
+    if (activeStudent && currentSubject) {
+      logActivity({
+        actorType: 'student',
+        actionType: 'view_drive_resource',
+        studentId: activeStudent.id,
+        studentCode: activeStudent.studentCode,
+        studentName: `${activeStudent.prefix}${activeStudent.fullName}`,
+        classroomId: studentClassroom?.id,
+        classroomName: studentClassroom?.name,
+        subjectId: currentSubject.id,
+        subjectName: currentSubject.name,
+        title: `เปิดดูใบงาน: ${worksheet.title}`,
+        details: `เปิดอ่านใบงาน ${worksheet.title} (${worksheet.subjectName})`,
+        targetName: worksheet.title,
+      });
+    }
+  };
+
+  const handleCloseWorksheetPreview = () => {
+    if (worksheetOpenTimeRef.current && activeStudent && currentSubject && studentPreviewWorksheet) {
+      const elapsedSec = Math.round((Date.now() - worksheetOpenTimeRef.current) / 1000);
+      if (elapsedSec >= 2) {
+        const mins = Math.floor(elapsedSec / 60);
+        const secs = elapsedSec % 60;
+        const timeStr = mins > 0 ? `${mins} นาที ${secs} วินาที` : `${secs} วินาที`;
+
+        logActivity({
+          actorType: 'student',
+          actionType: 'read_resource_time',
+          studentId: activeStudent.id,
+          studentCode: activeStudent.studentCode,
+          studentName: `${activeStudent.prefix}${activeStudent.fullName}`,
+          classroomId: studentClassroom?.id,
+          classroomName: studentClassroom?.name,
+          subjectId: currentSubject.id,
+          subjectName: currentSubject.name,
+          title: `บันทึกเวลาศึกษาใบงาน: ${studentPreviewWorksheet.title}`,
+          details: `ใช้เวลาศึกษาอ่านเนื้อหาใบงานไป ${timeStr}`,
+          durationSeconds: elapsedSec,
+          targetName: studentPreviewWorksheet.title,
+        });
+      }
+    }
+    worksheetOpenTimeRef.current = null;
+    setStudentPreviewWorksheet(null);
+  };
+
 
   // My activity logs
   const myActivityLogs = useMemo(() => {
@@ -222,29 +311,6 @@ ${worksheet.questions.map((q, idx) => {
         targetId: asg.id,
         targetName: asg.title,
       });
-    }
-  };
-
-  const handleOpenWorksheetPreview = (res: any) => {
-    if (res.worksheetData) {
-      setStudentPreviewWorksheet(res.worksheetData);
-      if (activeStudent && currentSubject) {
-        logActivity({
-          actorType: 'student',
-          actionType: 'view_drive_resource',
-          studentId: activeStudent.id,
-          studentCode: activeStudent.studentCode,
-          studentName: `${activeStudent.prefix}${activeStudent.fullName}`,
-          classroomId: studentClassroom?.id,
-          classroomName: studentClassroom?.name,
-          subjectId: currentSubject.id,
-          subjectName: currentSubject.name,
-          title: `เปิดดูเนื้อหาใบงาน: ${res.title}`,
-          details: `เข้าดูเนื้อหาใบงานและแบบฝึกหัด`,
-          targetId: res.id,
-          targetName: res.title,
-        });
-      }
     }
   };
 
@@ -894,7 +960,7 @@ ${worksheet.questions.map((q, idx) => {
                         {res.worksheetData ? (
                           <>
                             <button
-                              onClick={() => handleOpenWorksheetPreview(res)}
+                              onClick={() => res.worksheetData && handleOpenWorksheetPreview(res.worksheetData)}
                               className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -1056,7 +1122,7 @@ ${worksheet.questions.map((q, idx) => {
                 <h3 className="font-bold text-lg text-slate-900">{studentPreviewWorksheet.title}</h3>
               </div>
               <button
-                onClick={() => setStudentPreviewWorksheet(null)}
+                onClick={handleCloseWorksheetPreview}
                 className="text-slate-400 hover:text-slate-600 p-1"
               >
                 ✕
@@ -1112,7 +1178,7 @@ ${worksheet.questions.map((q, idx) => {
                 </button>
               </div>
               <button
-                onClick={() => setStudentPreviewWorksheet(null)}
+                onClick={handleCloseWorksheetPreview}
                 className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl"
               >
                 ปิดหน้าต่าง

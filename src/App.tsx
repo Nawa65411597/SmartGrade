@@ -15,25 +15,27 @@ import { SchoolSettingsView } from './components/teacher/SchoolSettingsView';
 import { AttendanceView } from './components/teacher/AttendanceView';
 import { TimelineView } from './components/teacher/TimelineView';
 import { DriveView } from './components/teacher/DriveView';
+import { ActivityLogsView } from './components/teacher/ActivityLogsView';
 import { StudentPortal } from './components/student/StudentPortal';
 import { PrintReportModal } from './components/teacher/PrintReportModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const MainLayout: React.FC = () => {
   const { mode, activeTab, sidebarCollapsed } = useApp();
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-formal">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-formal transition-colors">
       {mode === 'student' ? (
-        /* Student Check Mode (Optimized for Mobile with Official Thai Sarabun Font) */
+        /* Student Check Mode (Optimized for Mobile with Soft Pastel Colors) */
         <div className="flex-1 flex flex-col">
           <Header onOpenPrint={() => setShowPrintModal(true)} />
-          <main className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
+          <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
             <StudentPortal />
           </main>
         </div>
       ) : (
-        /* Teacher Mode with Collapsible Left Sidebar */
+        /* Teacher Mode with Categorized Collapsible Sidebar */
         <div className="min-h-screen flex flex-col">
           {/* Collapsible Sidebar */}
           <Sidebar onOpenPrint={() => setShowPrintModal(true)} />
@@ -44,11 +46,12 @@ const MainLayout: React.FC = () => {
           }`}>
             <Header onOpenPrint={() => setShowPrintModal(true)} />
 
-            <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
               {activeTab === 'dashboard' && <DashboardView />}
               {activeTab === 'attendance' && <AttendanceView />}
               {activeTab === 'timeline' && <TimelineView />}
               {activeTab === 'drive' && <DriveView />}
+              {activeTab === 'activity_logs' && <ActivityLogsView />}
               {activeTab === 'check_submissions' && <SubmissionCheckerView />}
               {activeTab === 'enter_scores' && <ScoreEntryView />}
               {activeTab === 'assignments' && <AssignmentManager />}
@@ -73,8 +76,10 @@ const MainLayout: React.FC = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <MainLayout />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MainLayout />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

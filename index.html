@@ -13,9 +13,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   </head>
-  <body class="font-sans antialiased bg-slate-50 text-slate-800 selection:bg-indigo-500 selection:text-white">
+  <body class="font-sans antialiased bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 selection:bg-indigo-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fallback: If deployed directly on Cloudflare Pages or static host without build step,
+      // gracefully redirect to the pre-built bundle in /dist/
+      if (typeof window !== 'undefined' && location.hostname.includes('pages.dev') && !location.pathname.startsWith('/dist')) {
+        window.addEventListener('error', function(e) {
+          if (e.message && (e.message.indexOf('module script') !== -1 || e.message.indexOf('MIME type') !== -1)) {
+            console.warn('Switching to production bundle in /dist/');
+            location.replace('/dist' + (location.pathname === '/' ? '/index.html' : location.pathname));
+          }
+        }, true);
+      }
+    </script>
   </body>
 </html>
 

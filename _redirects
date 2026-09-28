@@ -1,0 +1,6 @@
+# Direct upload fallback for Cloudflare Pages when the repository folder is uploaded directly
+/assets/*    /dist/assets/:splat    200
+/dist/*      /dist/:splat           200
+/favicon.ico /dist/favicon.ico      200
+/            /dist/index.html       200
+/*           /dist/index.html       200

@@ -1,0 +1,292 @@
+interface Env {
+  GEMINI_API_KEY?: string;
+  VITE_GEMINI_API_KEY?: string;
+}
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
+export const onRequestOptions = async () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+};
+
+async function callGeminiRest(apiKey: string, prompt: string, expectJson = false): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  
+  const payload: any = {
+    contents: [
+      {
+        parts: [{ text: prompt }],
+      },
+    ],
+  };
+
+  if (expectJson) {
+    payload.generationConfig = {
+      responseMimeType: 'application/json',
+    };
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error (${response.status}): ${errText}`);
+  }
+
+  const result: any = await response.json();
+  const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return text;
+}
+
+export const onRequestPost = async (context: {
+  request: Request;
+  env: Env;
+  params: { path?: string | string[] };
+}) => {
+  const apiKey = context.env.GEMINI_API_KEY || context.env.VITE_GEMINI_API_KEY || '';
+
+  if (!apiKey) {
+    return jsonResponse(
+      {
+        error:
+          'GEMINI_API_KEY is not configured on Cloudflare Pages. Please add GEMINI_API_KEY in Cloudflare Pages Settings > Environment Variables.',
+      },
+      500
+    );
+  }
+
+  const url = new URL(context.request.url);
+  const pathSegments = Array.isArray(context.params.path)
+    ? context.params.path.join('/')
+    : context.params.path || '';
+  const pathname = pathSegments || url.pathname.replace(/^\/api\/gemini\/?/, '');
+
+  let body: any = {};
+  try {
+    body = await context.request.json();
+  } catch {
+    body = {};
+  }
+
+  try {
+    // 1. generate-comment
+    if (pathname.includes('generate-comment')) {
+      const { studentName, seatNumber, studentCode, grade, totalScore, completionRate, pendingCount, periodScores } = body;
+      const prompt = `คุณคือครูผู้เชี่ยวชาญการศึกษาไทยระดับแนวหน้า กรุณาเขียนความเห็นครูประจำชั้น / บันทึกผลการเรียนรู้และคำแนะนำพัฒนาการรายบุคคล (สำหรับ ปพ.5 และการแจ้งผู้ปกครอง)
+ข้อมูลนักเรียน:
+- ชื่อ: ${studentName} (เลขที่ ${seatNumber}, รหัส ${studentCode})
+- ผลการเรียนรวม: เกรด ${grade} (คะแนนรวม ${totalScore}/100)
+- อัตราการส่งงาน: ${completionRate}% (งานค้าง ${pendingCount} ชิ้น)
+- คะแนนรายช่วง: ก่อนกลางภาค: ${periodScores?.preMidterm || '-'}, กลางภาค: ${periodScores?.midterm || '-'}, หลังกลางภาค: ${periodScores?.postMidterm || '-'}, ปลายภาค: ${periodScores?.final || '-'}
+
+คำสั่ง:
+1. เขียนความคิดเห็นที่เป็นทางการ สุภาพ เสริมสร้างกำลังใจ (เชิงบวก) และสะท้อนผลการเรียนรู้ที่แท้จริง
+2. หากมีงานค้างหรือคะแนนต่ำ ให้ระบุข้อควรพัฒนาและวิธีช่วยเหลือซ่อมเสริมอย่างสร้างสรรค์
+3. ให้ความยาวประมาณ 2-4 บรรทัด เหมาะสำหรับพิมพ์ลงในช่องความเห็น ปพ.5 หรือสมุดพก
+ตอบเฉพาะข้อความความคิดเห็นภาษาไทย โดยไม่ต้องมีคำนำหรือข้อความเปิด/ปิดอื่น`;
+
+      const text = await callGeminiRest(apiKey, prompt, false);
+      return jsonResponse({ comment: text.trim() });
+    }
+
+    // 2. generate-assignment
+    if (pathname.includes('generate-assignment')) {
+      const { subjectName, gradeLevel, topicTitle, period, targetScore } = body;
+      const prompt = `คุณคือครูผู้เชี่ยวชาญการออกแบบการจัดการเรียนรู้และการวัดผลประเมินผลตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน
+ช่วยออกแบบภาระงาน/ชิ้นงานย่อย พร้อมเกณฑ์การให้คะแนนรูบริก (Rubric Scoring Guide):
+- วิชา: ${subjectName || 'วิชาทั่วไป'}
+- ระดับชั้น: ${gradeLevel || 'มัธยมศึกษา'}
+- สาระ/บท/เรื่อง: ${topicTitle}
+- ช่วงการประเมิน: ${period === 'pre_midterm' ? 'ก่อนกลางภาค' : period === 'midterm' ? 'กลางภาค' : period === 'post_midterm' ? 'หลังกลางภาค' : 'ปลายภาค'}
+- คะแนนเต็มที่ตั้งไว้: ${targetScore || 10} คะแนน
+
+กรุณาตอบเป็น JSON รูปแบบนี้เท่านั้น:
+{
+  "title": "ชื่องาน/ใบงานย่อยที่น่าสนใจและตรงตัวชี้วัด",
+  "category": "หมวดหมู่งาน (เช่น ใบงาน, ชิ้นงาน, แบบฝึกหัด, โครงงาน)",
+  "suggestedMaxScore": 10,
+  "description": "คำอธิบายภาระงานและคำชี้แจงสำหรับนักเรียนอย่างชัดเจน",
+  "subTasks": ["งานย่อยที่ 1...", "งานย่อยที่ 2..."],
+  "rubric": [
+    { "criteria": "ความถูกต้องของเนื้อหา", "score": 4, "description": "ถูกต้องครบถ้วนตามหลักการ" },
+    { "criteria": "กระบวนการทำงาน/ความคิดสร้างสรรค์", "score": 3, "description": "มีความประณีตและคิดเป็นระบบ" },
+    { "criteria": "การตรงต่อเวลาและความรับผิดชอบ", "score": 3, "description": "ส่งงานตามกำหนดเวลา" }
+  ]
+}`;
+      const text = await callGeminiRest(apiKey, prompt, true);
+      const parsed = JSON.parse(text || '{}');
+      return jsonResponse(parsed);
+    }
+
+    // 3. analyze-class
+    if (pathname.includes('analyze-class')) {
+      const { subjectName, className, totalStudents, passCount, failCount, meanScore, atRiskStudents, pendingAssignments } = body;
+      const prompt = `คุณคือศึกษานิเทศก์และผู้เชี่ยวชาญด้านการวัดผลวิเคราะห์ข้อมูลชั้นเรียน
+ช่วยวินิจฉัยผลสัมฤทธิ์ทางการเรียนและเสนอแผนช่วยเหลือซ่อมเสริม (Intervention Plan) สำหรับห้องเรียนนี้:
+- วิชา: ${subjectName} ห้อง: ${className}
+- นักเรียนทั้งหมด: ${totalStudents} คน, ผ่านเกณฑ์: ${passCount} คน, ไม่ผ่าน: ${failCount} คน, คะแนนเฉลี่ย: ${meanScore}
+- นักเรียนกลุ่มเสี่ยง/ต้องการการดูแลพิเศษ: ${JSON.stringify(atRiskStudents?.slice(0, 8) || [])}
+- งานที่มีนักเรียนค้างส่งมากที่สุด: ${JSON.stringify(pendingAssignments?.slice(0, 5) || [])}
+
+ตอบกลับเป็น JSON ดังนี้:
+{
+  "summary": "บทวิเคราะห์ภาพรวมผลการเรียนรู้ของห้องใน 2-3 บรรทัด",
+  "rootCauses": ["สาเหตุหลักที่อาจส่งผลต่องานค้างหรือคะแนนต่ำ..."],
+  "recommendedInterventions": [
+    { "targetGroup": "กลุ่มเสี่ยง/ค้างงานสะสม", "action": "แนวทางปฏิบัติการสอนซ่อมเสริมที่ครูควรทำทันที" },
+    { "targetGroup": "กลุ่มปานกลาง", "action": "แนวทางกระตุ้นการส่งงานและยกระดับเกรด" },
+    { "targetGroup": "กลุ่มคะแนนดีเยี่ยม", "action": "กิจกรรมส่งเสริมการเป็นพี่เลี้ยงช่วยเพื่อน (Peer Tutor)" }
+  ],
+  "quickTips": ["ข้อแนะนำสั้นๆ 2-3 ข้อสำหรับครูผู้สอน"]
+}`;
+      const text = await callGeminiRest(apiKey, prompt, true);
+      const parsed = JSON.parse(text || '{}');
+      return jsonResponse(parsed);
+    }
+
+    // 4. parse-roster
+    if (pathname.includes('parse-roster')) {
+      const { rawText } = body;
+      if (!rawText || !rawText.trim()) {
+        return jsonResponse({ error: 'No text provided' }, 400);
+      }
+      const prompt = `แปลงข้อความรายชื่อนักเรียนต่อไปนี้ที่คัดลอกมาจาก Excel, SchoolMIS, SGS หรือเอกสารอื่น ให้เป็นตารางข้อมูลนักเรียนที่ถูกต้องและสมบูรณ์
+ข้อความต้นฉบับ:
+"""
+${rawText.slice(0, 10000)}
+"""
+
+คำสั่ง:
+1. ดึงข้อมูล:
+   - seatNumber (เลขที่): เป็นตัวเลข (หากไม่มี ให้รัน 1, 2, 3...)
+   - studentCode (รหัสนักเรียน/รหัสประจำตัว): ตัวเลข 4-10 หลัก (หากไม่มี ให้สร้างรหัสสมมุติขึ้นต้นด้วย 5xxxx)
+   - prefix (คำนำหน้า): แยกให้ชัดเจน เช่น "เด็กชาย", "เด็กหญิง", "นาย", "นางสาว" (หากในชื่อมีคำนำหน้าติดมา ให้แยกออกมา)
+   - fullName (ชื่อ-นามสกุล): ชื่อและนามสกุลโดยไม่มีคำนำหน้า
+   - gender (เพศ): "male" (ถ้าเป็นเด็กชาย หรือ นาย) หรือ "female" (ถ้าเป็นเด็กหญิง หรือ นางสาว)
+   - note (หมายเหตุ ถ้ามี)
+2. กรองบรรทัดหัวตารางหรือข้อความที่ไม่ใช่รายชื่อนักเรียนออกไป
+
+ตอบเป็น JSON array เท่านั้น:
+[
+  {
+    "seatNumber": 1,
+    "studentCode": "52101",
+    "prefix": "เด็กชาย",
+    "fullName": "สมคิด สดใส",
+    "gender": "male",
+    "note": ""
+  }
+]`;
+      const text = await callGeminiRest(apiKey, prompt, true);
+      const students = JSON.parse(text || '[]');
+      return jsonResponse({ students });
+    }
+
+    // 5. generate-worksheet
+    if (pathname.includes('generate-worksheet')) {
+      const { subjectName, gradeLevel, unitTitle, topicTitle, difficulty, questionCount, schoolName } = body;
+      const count = Number(questionCount) || 5;
+      const diffText = difficulty === 'hard' ? 'ระดับท้าทาย/วิเคราะห์ขั้นสูง' : difficulty === 'easy' ? 'ระดับพื้นฐาน/เข้าใจง่าย' : 'ระดับมาตรฐานตามหลักสูตร';
+      const prompt = `คุณคือศึกษานิเทศก์และผู้เชี่ยวชาญการสร้างข้อสอบและใบงานมาตรฐานตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน
+ช่วยออกแบบใบงานการเรียนรู้ (Worksheet) คุณภาพสูงพร้อมเฉลยและเกณฑ์รูบริก:
+- ชื่อสถานศึกษา: ${schoolName || 'โรงเรียน'}
+- รายวิชา: ${subjectName || 'วิชาทั่วไป'} ระดับชั้น: ${gradeLevel || 'มัธยมศึกษา'}
+- หน่วยการเรียนรู้/บท: ${unitTitle || 'บทเรียน'}
+- หัวเรื่อง/สาระสำคัญ: ${topicTitle || 'เรื่องหลัก'}
+- ระดับความยาก: ${diffText}
+- จำนวนข้อที่ต้องการ: ${count} ข้อ
+
+กรุณาสร้างและตอบกลับเป็น JSON ที่มีโครงสร้างดังนี้เท่านั้น:
+{
+  "title": "ใบงานเรื่อง...",
+  "gradeLevel": "${gradeLevel || 'มัธยมศึกษา'}",
+  "subjectName": "${subjectName || 'วิชา'}",
+  "instructions": "คำชี้แจงสำหรับนักเรียนอย่างชัดเจน...",
+  "objectives": [
+    "จุดประสงค์การเรียนรู้ที่ 1...",
+    "จุดประสงค์การเรียนรู้ที่ 2..."
+  ],
+  "conceptSummary": "สรุปสาระสำคัญสั้นๆ 2-3 บรรทัดเพื่อให้นักเรียนทบทวนก่อนทำใบงาน...",
+  "questions": [
+    {
+      "id": "q-1",
+      "type": "multiple_choice",
+      "question": "ข้อคำถามปรนัย...",
+      "options": ["ก. ...", "ข. ...", "ค. ...", "ง. ..."],
+      "correctAnswer": "ก. ... (เหตุผลประกอบสั้นๆ)",
+      "points": 1
+    },
+    {
+      "id": "q-2",
+      "type": "short_answer",
+      "question": "ข้อคำถามอัตนัย/แสดงวิธีทำสั้น...",
+      "correctAnswer": "แนวคำตอบและวิธีคิด...",
+      "points": 2
+    }
+  ],
+  "answerKeyGuide": "คำอธิบายเฉลยรวมและข้อพึงระวังสำหรับครูผู้สอน...",
+  "rubricCriteria": [
+    { "criteria": "ความถูกต้องของเนื้อหาและคำตอบ", "score": 4, "description": "ตอบได้ถูกต้องครบถ้วน แสดงวิธีทำชัดเจน" },
+    { "criteria": "กระบวนการคิดและการสื่อสารทางวิชาการ", "score": 3, "description": "ใช้ศัพท์และสัญลักษณ์ถูกต้อง เป็นระเบียบ" },
+    { "criteria": "ความตรงต่อเวลาและความรับผิดชอบ", "score": 3, "description": "ทำงานสำเร็จเรียบร้อยตามเวลา" }
+  ]
+}`;
+      const text = await callGeminiRest(apiKey, prompt, true);
+      const parsed = JSON.parse(text || '{}');
+      return jsonResponse(parsed);
+    }
+
+    // 6. generate-lesson-log
+    if (pathname.includes('generate-lesson-log')) {
+      const { subjectName, gradeLevel, unit, topic, sessionNumber } = body;
+      const prompt = `คุณคือครูผู้เชี่ยวชาญการบันทึกหลังการจัดการเรียนรู้ (Lesson Plan Reflection & Activities Log)
+ช่วยร่างกิจกรรมการเรียนการสอนและบันทึกหลังสอนสำหรับคาบเรียนนี้:
+- วิชา: ${subjectName} (${gradeLevel})
+- คาบที่: ${sessionNumber || 1}
+- บท/เรื่อง: ${unit} - ${topic}
+
+ตอบกลับเป็น JSON ดังนี้:
+{
+  "activities": "1. ขั้นนำ (10 นาที): ...\\n2. ขั้นสอนและกิจกรรม (35 นาที): ...\\n3. ขั้นสรุปและประเมิน (15 นาที): ...",
+  "learningOutcomes": "นักเรียนส่วนใหญ่ (>85%) สามารถเข้าใจและปฏิบัติกิจกรรมได้ตามจุดประสงค์การเรียนรู้...",
+  "problemsAndSolutions": "ปัญหา: นักเรียนบางคนสับสนเรื่อง... / แนวทางแก้ไข: ให้เพื่อนช่วยเพื่อน (Peer Tutoring) และยกตัวอย่างสถานการณ์จริงเพิ่มเติม"
+}`;
+      const text = await callGeminiRest(apiKey, prompt, true);
+      const parsed = JSON.parse(text || '{}');
+      return jsonResponse(parsed);
+    }
+
+    return jsonResponse({ error: `Unknown endpoint: ${pathname}` }, 404);
+  } catch (err: any) {
+    console.error('Error handling Gemini request on Cloudflare Pages:', err);
+    return jsonResponse(
+      { error: err instanceof Error ? err.message : 'Internal Server Error' },
+      500
+    );
+  }
+};

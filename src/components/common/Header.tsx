@@ -11,9 +11,14 @@ import {
   Lock, 
   LogOut, 
   ChevronDown,
-  Menu
+  Menu,
+  Sun,
+  Moon,
+  AlertTriangle,
+  Mail
 } from 'lucide-react';
 import { TeacherLoginModal } from '../teacher/TeacherLoginModal';
+import { SystemErrorModal } from './SystemErrorModal';
 
 interface HeaderProps {
   onOpenPrint: () => void;
@@ -32,7 +37,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
     importBackupData,
     clearAllData,
     schoolProfile,
-    setMobileSidebarOpen
+    setMobileSidebarOpen,
+    themeMode,
+    toggleThemeMode,
+    showErrorModal,
+    setShowErrorModal,
   } = useApp();
 
   const [showSubjectMenu, setShowSubjectMenu] = useState(false);
@@ -59,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
 
   return (
     <>
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print font-formal">
+      <header className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-30 shadow-xs no-print font-formal transition-colors">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left branding & mobile menu toggle */}
@@ -67,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
               {mode === 'teacher' && (
                 <button
                   onClick={() => setMobileSidebarOpen(true)}
-                  className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                   title="เปิดแถบนำทางด้านข้าง"
                 >
                   <Menu className="w-5 h-5" />
@@ -75,19 +84,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
               )}
 
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center text-white shadow-md shadow-indigo-100 shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-400 flex items-center justify-center text-white shadow-md shadow-indigo-200/50 dark:shadow-none shrink-0">
                   <School className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-base sm:text-lg text-slate-800 tracking-tight truncate max-w-[200px] sm:max-w-xs">
+                    <span className="font-bold text-base sm:text-lg text-slate-800 dark:text-white tracking-tight truncate max-w-[200px] sm:max-w-xs">
                       {schoolProfile.name || 'KruSmart'}
                     </span>
-                    <span className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                    <span className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800">
                       {mode === 'teacher' ? 'ระบบบริหารงานวัดผล' : 'ระบบตรวจสอบงาน'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 hidden md:block truncate max-w-sm">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 hidden md:block truncate max-w-sm">
                     {schoolProfile.affiliation || 'ระบบจัดการคะแนน งาน และตัดเกรดอัตโนมัติ'}
                   </p>
                 </div>
@@ -99,17 +108,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
               <div className="relative">
                 <button
                   onClick={() => setShowSubjectMenu(!showSubjectMenu)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition cursor-pointer shadow-2xs"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium transition cursor-pointer shadow-2xs"
                   title="เปลี่ยนวิชาที่กำลังจัดการ"
                 >
                   <span 
                     className="w-2.5 h-2.5 rounded-full shrink-0" 
-                    style={{ backgroundColor: currentSubject?.color || '#3B82F6' }}
+                    style={{ backgroundColor: currentSubject?.color || '#818CF8' }}
                   />
-                  <span className="font-bold text-slate-900 truncate max-w-[120px] sm:max-w-[180px]">
+                  <span className="font-bold text-slate-900 dark:text-white truncate max-w-[120px] sm:max-w-[180px]">
                     {currentSubject ? `${currentSubject.code} ${currentSubject.name}` : 'เลือกวิชา'}
                   </span>
-                  <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 font-semibold hidden sm:inline">
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hidden sm:inline">
                     ห้อง {currentClassroom?.name || 'ม.2/1'}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -121,8 +130,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
                       className="fixed inset-0 z-10" 
                       onClick={() => setShowSubjectMenu(false)} 
                     />
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-20 animate-scaleUp">
-                      <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-20 animate-scaleUp">
+                      <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                         วิชาทั้งหมดที่สอน ({subjects.length} วิชา)
                       </div>
                       {subjects.map((sub) => (
@@ -132,8 +141,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
                             setSelectedSubjectId(sub.id);
                             setShowSubjectMenu(false);
                           }}
-                          className={`w-full px-3 py-2 text-left flex items-start gap-3 hover:bg-slate-50 transition cursor-pointer ${
-                            selectedSubjectId === sub.id ? 'bg-indigo-50/60 font-semibold text-indigo-900' : 'text-slate-700'
+                          className={`w-full px-3 py-2 text-left flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer ${
+                            selectedSubjectId === sub.id ? 'bg-indigo-50/70 dark:bg-indigo-950/60 font-semibold text-indigo-900 dark:text-indigo-200' : 'text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           <span 
@@ -144,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
                             <div className="text-xs sm:text-sm truncate">
                               <span className="font-bold">{sub.code}</span> {sub.name}
                             </div>
-                            <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
                               <span>ระดับ {sub.gradeLevel}</span>
                               <span>•</span>
                               <span>ปีการศึกษา {sub.academicYear}/{sub.term}</span>
@@ -158,13 +167,37 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
               </div>
             )}
 
-            {/* Right actions */}
-            <div className="flex items-center gap-2">
+            {/* Right actions: Theme toggle, Help/Glitch Report, Print/Login */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Theme Mode Toggle (Pastel Dark / Light) */}
+              <button
+                onClick={toggleThemeMode}
+                className="p-2 rounded-xl text-slate-600 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer"
+                title={themeMode === 'dark' ? 'สลับเป็นโหมดสว่าง (Light Pastel)' : 'สลับเป็นโหมดมืด (Dark Pastel)'}
+                aria-label="Toggle theme"
+              >
+                {themeMode === 'dark' ? (
+                  <Sun className="w-4 h-4 text-amber-300 animate-spin-slow" />
+                ) : (
+                  <Moon className="w-4 h-4 text-indigo-600" />
+                )}
+              </button>
+
+              {/* System Error & Bug Report to nawaratk65@gmail.com */}
+              <button
+                onClick={() => setShowErrorModal(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200/70 dark:border-rose-900/50 rounded-xl transition cursor-pointer"
+                title="หากระบบขัดข้อง แจ้งอีเมล nawaratk65@gmail.com"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                <span className="hidden sm:inline">แจ้งปัญหา</span>
+              </button>
+
               {mode === 'student' ? (
                 /* Student view: Prominent Teacher Login button */
                 <button
                   onClick={() => setShowLoginModal(true)}
-                  className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition cursor-pointer shadow-md shadow-indigo-100 active:scale-95"
+                  className="flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl transition cursor-pointer shadow-md shadow-indigo-200 dark:shadow-none active:scale-95"
                 >
                   <Lock className="w-4 h-4" />
                   <span>เข้าสู่ระบบครูผู้สอน</span>
@@ -174,23 +207,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
                 <>
                   <button
                     onClick={onOpenPrint}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition cursor-pointer shadow-2xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition cursor-pointer shadow-2xs"
                     title="พิมพ์แบบบันทึกผลการเรียน (ปพ.5)"
                   >
-                    <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                    <Printer className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                     <span className="hidden md:inline">พิมพ์ ปพ.5</span>
                   </button>
 
-                  <div className="hidden lg:flex items-center gap-1 border-l border-slate-200 pl-2">
+                  <div className="hidden lg:flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-2">
                     <button
                       onClick={exportBackupData}
-                      className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                      className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
                       title="สำรองข้อมูล JSON"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <label 
-                      className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                      className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                       title="นำเข้าไฟล์สำรองข้อมูล"
                     >
                       <Upload className="w-4 h-4" />
@@ -209,9 +242,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
 
           {/* Import Notification Banner */}
           {importNotice && (
-            <div className="bg-emerald-50 text-emerald-800 text-xs py-1.5 px-4 rounded-md mb-2 flex items-center justify-between border border-emerald-200 animate-fadeIn">
+            <div className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs py-1.5 px-4 rounded-xl mb-2 flex items-center justify-between border border-emerald-200 dark:border-emerald-800 animate-fadeIn">
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 {importNotice}
               </span>
             </div>
@@ -224,6 +257,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenPrint }) => {
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
       />
+
+      {/* System Glitch & Error Reporting Modal (nawaratk65@gmail.com) */}
+      <SystemErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+      />
     </>
   );
 };
+

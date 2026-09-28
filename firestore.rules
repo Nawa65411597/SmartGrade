@@ -108,6 +108,15 @@ service cloud.firestore {
       allow delete: if isValidId(resourceId);
     }
 
+    // Activity Logs & Audit Trail
+    match /activity_logs/{logId} {
+      allow read: if isValidId(logId);
+      allow create, update: if isValidId(logId) &&
+        incoming().actorType is string &&
+        (incoming().actionType is string || incoming().action is string);
+      allow delete: if isValidId(logId);
+    }
+
     // Connection test document
     match /test/connection {
       allow read: if true;

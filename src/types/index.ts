@@ -323,6 +323,10 @@ export type ActivityActionType =
   | 'view_drive_resource'      // นักเรียนเปิดดูสื่อการสอน/ใบงาน
   | 'download_resource'        // นักเรียนดาวน์โหลดสื่อหรือใบงาน
   | 'submit_work'              // นักเรียนส่งงาน/แนบไฟล์งาน
+  | 'read_resource_time'       // จับเวลาการอ่านใบงาน/ศึกษาบทเรียน
+  | 'portal_session_duration'  // ระยะเวลาอยู่ในระบบตรวจสอบงาน
+  | 'integrity_flag'           // ตรวจพบพฤติกรรมผิดปกติ (วิกาล/เปลี่ยนอุปกรณ์)
+  | 'followup_sent'            // ครูส่งข้อความติดตามงาน
   | 'teacher_score_entry'      // ครูบันทึก/ปรับปรุงคะแนน ปพ.5
   | 'teacher_attendance_check' // ครูเช็คชื่อประจำคาบ
   | 'teacher_permission_grant' // ครูกดเปิดอนุญาตสื่อ/ใบงานให้นักเรียน
@@ -348,9 +352,28 @@ export interface UserActivityLog {
   actionType: ActivityActionType;
   title: string;              // หัวข้อสั้น เช่น "เข้าตรวจเช็คงานค้าง", "ดาวน์โหลดใบงานที่ 1"
   details: string;            // รายละเอียดเพิ่มเติม
+  durationSeconds?: number;   // ระยะเวลาที่ใช้ (วินาที) สำหรับ read time หรือ session duration
+  isIntegrityFlagged?: boolean; // ธงตรวจสอบความโปร่งใส (ผิดปกติ/วิกาล)
+  integrityReason?: string;   // เหตุผล เช่น "เข้าใช้งานเวลา 02:45 น. (วิกาล)"
   targetId?: string;          // assignmentId, resourceId, etc.
   targetName?: string;
   deviceInfo?: ActivityDeviceInfo;
   ipInfo?: string;
 }
+
+export type ThemeMode = 'light' | 'dark';
+
+export interface SystemErrorReport {
+  id: string;
+  timestamp: string;
+  errorName: string;
+  errorMessage: string;
+  stack?: string;
+  url: string;
+  userAgent: string;
+  componentName?: string;
+  details?: string;
+  resolved?: boolean;
+}
+
 

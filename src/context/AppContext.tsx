@@ -25,6 +25,7 @@ import {
   UserActivityLog,
   ActivityActionType,
   ActivityDeviceInfo,
+  ThemeMode,
 } from '../types';
 import {
   DEFAULT_GRADE_CUTOFFS,
@@ -70,6 +71,18 @@ interface AppContextType {
 
   activeTab: ActiveTabType;
   setActiveTab: (tab: ActiveTabType) => void;
+
+  // Theme & Pastel Styling (Light / Dark Mode)
+  themeMode: ThemeMode;
+  toggleThemeMode: () => void;
+  setThemeMode: (mode: ThemeMode) => void;
+
+  // System Error & Glitch Reporting (to nawaratk65@gmail.com)
+  systemError: { title: string; message: string; timestamp: string; details?: string } | null;
+  reportSystemError: (title: string, message: string, details?: string) => void;
+  clearSystemError: () => void;
+  showErrorModal: boolean;
+  setShowErrorModal: (show: boolean) => void;
 
   // Sidebar state
   sidebarCollapsed: boolean;
@@ -227,11 +240,86 @@ const STORAGE_KEYS = {
   TEACHING_LOGS: 'krusmart_prod_teaching_logs_v3',
   DRIVE_RESOURCES: 'krusmart_prod_drive_resources_v3',
   ACTIVITY_LOGS: 'krusmart_prod_activity_logs_v3',
+  THEME: 'krusmart_prod_theme_v3',
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Theme state: Pastel theme with Light / Dark Mode
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('krusmart_prod_theme_v3') as ThemeMode | null;
+    if (saved === 'dark' || saved === 'light') return saved;
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  });
+
+  const setThemeMode = useCallback((newTheme: ThemeMode) => {
+    setThemeModeState(newTheme);
+    localStorage.setItem('krusmart_prod_theme_v3', newTheme);
+    if (typeof document !== 'undefined') {
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, []);
+
+  const toggleThemeMode = useCallback(() => {
+    setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
+  }, [themeMode, setThemeMode]);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (themeMode === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [themeMode]);
+
+  // System Glitch & Error Reporting state (Contact: nawaratk65@gmail.com)
+  const [systemError, setSystemError] = useState<{ title: string; message: string; timestamp: string; details?: string } | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState<boolean>(false);
+
+  const reportSystemError = useCallback((title: string, message: string, details?: string) => {
+    setSystemError({
+      title,
+      message,
+      timestamp: new Date().toISOString(),
+      details,
+    });
+    setShowErrorModal(true);
+  }, []);
+
+  const clearSystemError = useCallback(() => {
+    setSystemError(null);
+  }, []);
+
+  // Global uncaught error listener to notify users with email reporting option
+  useEffect(() => {
+    const handleError = (e: ErrorEvent) => {
+      console.error('Captured window error:', e.error);
+    };
+
+    const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
+      console.warn('Unhandled promise rejection:', e.reason);
+      if (e.reason && typeof e.reason === 'object' && e.reason.message && e.reason.message.includes('503')) {
+        reportSystemError('เซิร์ฟเวอร์แจ้งสถานะ 503 Service Unavailable', 'ระบบหลังบ้านกำลังประมวลผลหรือโหลดข้อมูลไม่สำเร็จ กรุณากดส่งอีเมลแจ้งทีมงาน', String(e.reason));
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [reportSystemError]);
+
   // Mode defaults to 'student' per user requirement!
   const [mode, setModeState] = useState<'teacher' | 'student'>(() => {
     return (localStorage.getItem(STORAGE_KEYS.MODE) as 'teacher' | 'student') || 'student';
@@ -931,14 +1019,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logActivity = useCallback((data: Omit<UserActivityLog, 'id' | 'timestamp' | 'deviceInfo'> & { deviceInfo?: Partial<ActivityDeviceInfo> }) => {
+    const { deviceInfo: customDeviceInfo, ...restData } = data;
+    const clientInfo = getClientDeviceInfo();
     const newLog: UserActivityLog = {
       id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
+      ...restData,
       deviceInfo: {
-        ...getClientDeviceInfo(),
-        ...(data.deviceInfo || {})
+        browser: customDeviceInfo?.browser || clientInfo.browser,
+        platform: customDeviceInfo?.platform || clientInfo.platform,
+        isMobile: customDeviceInfo?.isMobile ?? clientInfo.isMobile,
       },
-      ...data,
     };
 
     setActivityLogs(prev => [newLog, ...prev.slice(0, 499)]);
@@ -1602,6 +1693,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         clearAllData,
         exportBackupData,
         importBackupData,
+        themeMode,
+        toggleThemeMode,
+        setThemeMode,
+        systemError,
+        reportSystemError,
+        clearSystemError,
+        showErrorModal,
+        setShowErrorModal,
       }}
     >
       {children}
